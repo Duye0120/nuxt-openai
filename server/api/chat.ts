@@ -4,6 +4,7 @@ import { streamText } from 'ai';
 export default defineLazyEventHandler(async () => {
   const openai = createOpenAI({
     apiKey: useRuntimeConfig().openaiApiKey,
+    baseURL:'https://aihubmix.com/v1',
   });
 
   return defineEventHandler(async (event: any) => {

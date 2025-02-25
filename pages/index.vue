@@ -1,21 +1,24 @@
 <script setup lang="ts">
-import { useChat } from '@ai-sdk/vue';
-import { computed } from 'vue';
+import { useChat } from "@ai-sdk/vue";
+import { computed, watch } from "vue";
 
 const { error, input, status, handleSubmit, messages, reload, stop } = useChat({
   onFinish(message, { usage, finishReason }) {
-    console.log('Usage', usage);
-    console.log('FinishReason', finishReason);
+    console.log("Usage", usage);
+    console.log("FinishReason", finishReason);
   },
 });
+watch(messages,() => {
+  console.log("🚀 ~ messages:", messages);
+});
 
-const disabled = computed(() => status.value !== 'ready');
+const disabled = computed(() => status.value !== "ready");
 </script>
 
 <template>
   <div class="flex flex-col w-full max-w-md py-24 mx-auto stretch">
     <div v-for="m in messages" :key="m.id" class="whitespace-pre-wrap">
-      {{ m.role === 'user' ? 'User: ' : 'AI: ' }}
+      {{ m.role === "user" ? "User: " : "AI: " }}
       {{ m.content }}
     </div>
 
