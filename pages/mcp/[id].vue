@@ -3,6 +3,7 @@
 import { ref, computed, onMounted, watch } from "vue";
 import { useChat } from "@ai-sdk/vue";
 import { useRoute, useRouter } from "vue-router";
+import axios from "axios"; // 导入 axios
 // 导入侧边栏组件
 import MCPSidebar from "~/components/MCPSidebar.vue";
 const toast = useToast();
@@ -35,21 +36,12 @@ async function loadSessionMessages(sessionId: string) {
   try {
     console.log("加载会话消息历史:", sessionId);
 
-    const response = await fetch("/api/mcp-chat", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        action: "getMessages",
-        conversationId: sessionId,
-      }),
+    const response = await axios.post("/api/mcp-chat", {
+      action: "getMessages",
+      conversationId: sessionId,
     });
 
-    if (!response.ok) throw new Error("无法加载会话消息");
-
-    const data = await response.json();
-    return data.messages || [];
+    return response.data.messages || [];
   } catch (err) {
     console.error("加载会话消息失败:", err);
     error.value = "无法加载消息历史。";
@@ -228,23 +220,15 @@ async function createSession() {
     isPending.value = true;
     console.log("Creating new session");
 
-    const response = await fetch("/api/mcp-chat", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
+    const response = await axios.post("/api/mcp-chat", {
+      action: "create",
+      metadata: {
+        clientInfo: navigator.userAgent,
+        createdBy: "web-client",
       },
-      body: JSON.stringify({
-        action: "create",
-        metadata: {
-          clientInfo: navigator.userAgent,
-          createdBy: "web-client",
-        },
-      }),
     });
 
-    if (!response.ok) throw new Error("Failed to create session");
-
-    const data = await response.json();
+    const data = response.data;
 
     // 保存会话ID到localStorage
     localStorage.setItem("mcp_session_id", data.conversationId);
@@ -311,20 +295,12 @@ const submitMessage = async (e: Event) => {
 async function getSessionInfo(conversationId: string): Promise<MCPSession> {
   console.log("Getting session info for:", conversationId);
 
-  const response = await fetch("/api/mcp-chat", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      action: "get",
-      conversationId,
-    }),
+  const response = await axios.post("/api/mcp-chat", {
+    action: "get",
+    conversationId,
   });
 
-  if (!response.ok) throw new Error("Failed to get session info");
-
-  return response.json();
+  return response.data;
 }
 
 // 更新会话信息
@@ -360,18 +336,10 @@ async function deleteSession() {
     isPending.value = true;
     console.log("Deleting session:", activeSession.value.conversationId);
 
-    const response = await fetch("/api/mcp-chat", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        action: "delete",
-        conversationId: activeSession.value.conversationId,
-      }),
+    const response = await axios.post("/api/mcp-chat", {
+      action: "delete",
+      conversationId: activeSession.value.conversationId,
     });
-
-    if (!response.ok) throw new Error("Failed to delete session");
 
     // 清除localStorage中的会话ID
     localStorage.removeItem("mcp_session_id");
@@ -434,9 +402,7 @@ function copyMessage(content: string) {
     <div class="flex flex-col flex-1 pl-16 md:pl-72 h-full">
       <div class="flex flex-col h-full max-w-5xl mx-auto w-full p-4">
         <!-- 头部区域 -->
-        <header
-          class="flex items-center justify-between mb-4 p-4 border-b border-gray-200 dark:border-gray-700"
-        >
+        <header class="flex items-center justify-between mb-4 p-4 border-b border-gray-200 dark:border-gray-700">
           <div>
             <h1 class="text-xl font-bold">MCP 聊天</h1>
             <p class="text-sm text-gray-500 dark:text-gray-400">
@@ -445,13 +411,8 @@ function copyMessage(content: string) {
           </div>
 
           <div class="flex gap-2">
-            <UButton
-              v-if="!isSessionActive"
-              color="primary"
-              @click="createSession"
-              :loading="isPending"
-              :disabled="isLoading"
-            >
+            <UButton v-if="!isSessionActive" color="primary" @click="createSession" :loading="isPending"
+              :disabled="isLoading">
               <template #leading>
                 <UIcon name="i-heroicons-plus" />
               </template>
@@ -459,26 +420,14 @@ function copyMessage(content: string) {
             </UButton>
 
             <template v-else>
-              <UButton
-                color="primary"
-                variant="soft"
-                @click="createSession"
-                :loading="isPending"
-                :disabled="isLoading"
-              >
+              <UButton color="primary" variant="soft" @click="createSession" :loading="isPending" :disabled="isLoading">
                 <template #leading>
                   <UIcon name="i-heroicons-plus" />
                 </template>
                 新建会话
               </UButton>
 
-              <UButton
-                color="red"
-                variant="soft"
-                @click="deleteSession"
-                :loading="isPending"
-                :disabled="isLoading"
-              >
+              <UButton color="red" variant="soft" @click="deleteSession" :loading="isPending" :disabled="isLoading">
                 <template #leading>
                   <UIcon name="i-heroicons-trash" />
                 </template>
@@ -489,36 +438,21 @@ function copyMessage(content: string) {
         </header>
 
         <!-- 会话信息卡片 -->
-        <UCard
-          v-if="isSessionActive"
-          class="mb-4"
-          :ui="{ body: { padding: 'p-3' } }"
-        >
+        <UCard v-if="isSessionActive" class="mb-4" :ui="{ body: { padding: 'p-3' } }">
           <template #header>
             <div class="flex items-center justify-between">
               <div class="flex items-center space-x-2">
-                <UIcon
-                  name="i-heroicons-information-circle"
-                  class="text-primary-500"
-                />
+                <UIcon name="i-heroicons-information-circle" class="text-primary-500" />
                 <h3 class="text-sm font-medium">会话信息</h3>
               </div>
-              <UButton
-                color="gray"
-                variant="ghost"
-                size="xs"
-                icon="i-heroicons-clipboard"
-                @click="navigator.clipboard.writeText(window.location.href)"
-                :tooltip="'复制分享链接'"
-              />
+              <UButton color="gray" variant="ghost" size="xs" icon="i-heroicons-clipboard"
+                @click="navigator.clipboard.writeText(window.location.href)" :tooltip="'复制分享链接'" />
             </div>
           </template>
 
           <div class="grid grid-cols-2 gap-2 text-xs">
             <div class="space-y-1">
-              <div
-                class="flex items-center space-x-1 text-gray-500 dark:text-gray-400"
-              >
+              <div class="flex items-center space-x-1 text-gray-500 dark:text-gray-400">
                 <UIcon name="i-heroicons-finger-print" class="w-3 h-3" />
                 <span>会话 ID:</span>
               </div>
@@ -528,9 +462,7 @@ function copyMessage(content: string) {
             </div>
 
             <div class="space-y-1">
-              <div
-                class="flex items-center space-x-1 text-gray-500 dark:text-gray-400"
-              >
+              <div class="flex items-center space-x-1 text-gray-500 dark:text-gray-400">
                 <UIcon name="i-heroicons-calendar" class="w-3 h-3" />
                 <span>创建时间:</span>
               </div>
@@ -540,13 +472,8 @@ function copyMessage(content: string) {
             </div>
 
             <div class="space-y-1">
-              <div
-                class="flex items-center space-x-1 text-gray-500 dark:text-gray-400"
-              >
-                <UIcon
-                  name="i-heroicons-chat-bubble-left-right"
-                  class="w-3 h-3"
-                />
+              <div class="flex items-center space-x-1 text-gray-500 dark:text-gray-400">
+                <UIcon name="i-heroicons-chat-bubble-left-right" class="w-3 h-3" />
                 <span>消息数量:</span>
               </div>
               <div>{{ activeSession.messageCount }} 条</div>
@@ -555,52 +482,28 @@ function copyMessage(content: string) {
         </UCard>
 
         <!-- 错误提示 -->
-        <UAlert
-          v-if="error || chatError"
-          color="red"
-          variant="soft"
-          :title="'错误'"
-          icon="i-heroicons-exclamation-triangle"
-          class="mb-4"
-        >
+        <UAlert v-if="error || chatError" color="red" variant="soft" :title="'错误'"
+          icon="i-heroicons-exclamation-triangle" class="mb-4">
           {{ error || chatError }}
         </UAlert>
 
         <!-- 加载状态 -->
-        <div
-          v-if="initializing"
-          class="flex-1 flex items-center justify-center"
-        >
+        <div v-if="initializing" class="flex-1 flex items-center justify-center">
           <div class="text-center">
-            <UIcon
-              name="i-heroicons-arrow-path"
-              class="w-8 h-8 mx-auto mb-2 animate-spin text-primary-500"
-            />
+            <UIcon name="i-heroicons-arrow-path" class="w-8 h-8 mx-auto mb-2 animate-spin text-primary-500" />
             <p class="text-gray-600 dark:text-gray-300">加载会话中...</p>
           </div>
         </div>
 
         <!-- 无会话提示 -->
-        <div
-          v-else-if="!isSessionActive"
-          class="flex-1 flex items-center justify-center"
-        >
+        <div v-else-if="!isSessionActive" class="flex-1 flex items-center justify-center">
           <div class="text-center max-w-md p-6">
-            <UIcon
-              name="i-heroicons-chat-bubble-left-right"
-              class="w-12 h-12 mx-auto mb-4 text-primary-500"
-            />
+            <UIcon name="i-heroicons-chat-bubble-left-right" class="w-12 h-12 mx-auto mb-4 text-primary-500" />
             <h2 class="text-xl font-bold mb-2">开始一个新的会话</h2>
             <p class="text-gray-600 dark:text-gray-300 mb-6">
               创建一个新的会话，开始与AI助手交流。每个会话都会被保存，方便您随时回顾。
             </p>
-            <UButton
-              color="primary"
-              size="lg"
-              @click="createSession"
-              :loading="isPending"
-              :disabled="isLoading"
-            >
+            <UButton color="primary" size="lg" @click="createSession" :loading="isPending" :disabled="isLoading">
               <template #leading>
                 <UIcon name="i-heroicons-plus" />
               </template>
@@ -610,130 +513,77 @@ function copyMessage(content: string) {
         </div>
 
         <!-- 消息列表 -->
-        <div
-          v-else
-          ref="chatContainerRef"
-          class="flex-1 overflow-y-auto space-y-4 mb-4 p-2"
-        >
-          <div
-            v-for="message in messages"
-            :key="message.id"
-            class="group rounded-lg p-4"
-            :class="{
-              'bg-blue-50 dark:bg-blue-950': message.role === 'user',
-              'bg-gray-50 dark:bg-gray-800': message.role === 'assistant',
-              'bg-yellow-50 dark:bg-yellow-950': message.role === 'system',
-            }"
-          >
+        <div v-else ref="chatContainerRef" class="flex-1 overflow-y-auto space-y-4 mb-4 p-2">
+          <div v-for="message in messages" :key="message.id" class="group rounded-lg p-4" :class="{
+            'bg-blue-50 dark:bg-blue-950': message.role === 'user',
+            'bg-gray-50 dark:bg-gray-800': message.role === 'assistant',
+            'bg-yellow-50 dark:bg-yellow-950': message.role === 'system',
+          }">
             <!-- 消息头部 -->
             <div class="flex justify-between items-center mb-2">
               <div class="flex items-center space-x-2">
-                <UIcon
-                  :name="getRoleIcon(message.role)"
-                  class="w-5 h-5"
-                  :class="{
-                    'text-blue-500': message.role === 'user',
-                    'text-green-500': message.role === 'assistant',
-                    'text-yellow-500': message.role === 'system',
-                  }"
-                />
+                <UIcon :name="getRoleIcon(message.role)" class="w-5 h-5" :class="{
+                  'text-blue-500': message.role === 'user',
+                  'text-green-500': message.role === 'assistant',
+                  'text-yellow-500': message.role === 'system',
+                }" />
                 <span class="font-medium">
                   {{
                     message.role === "user"
                       ? "你"
                       : message.role === "assistant"
-                      ? "AI 助手"
-                      : "系统"
+                        ? "AI 助手"
+                        : "系统"
                   }}
                 </span>
               </div>
 
               <!-- 消息操作按钮 -->
               <div class="opacity-0 group-hover:opacity-100 transition-opacity">
-                <UButton
-                  color="gray"
-                  variant="ghost"
-                  icon="i-heroicons-clipboard"
-                  size="xs"
-                  @click="copyMessage(message.content)"
-                  :tooltip="'复制内容'"
-                  square
-                />
+                <UButton color="gray" variant="ghost" icon="i-heroicons-clipboard" size="xs"
+                  @click="copyMessage(message.content)" :tooltip="'复制内容'" square />
               </div>
             </div>
 
             <!-- 消息内容 -->
-            <div
-              class="whitespace-pre-wrap prose prose-sm max-w-none dark:prose-invert"
-              v-html="formatMessageContent(message.content)"
-            ></div>
+            <div class="whitespace-pre-wrap prose prose-sm max-w-none dark:prose-invert"
+              v-html="formatMessageContent(message.content)"></div>
           </div>
         </div>
 
         <!-- 输入区域 -->
         <div class="mt-auto border-t border-gray-200 dark:border-gray-700 pt-4">
           <form @submit="submitMessage" class="relative">
-            <UTextarea
-              v-model="input"
-              :placeholder="isSessionActive ? '输入消息...' : '请先创建会话...'"
-              :disabled="disabled"
+            <UTextarea v-model="input" :placeholder="isSessionActive ? '输入消息...' : '请先创建会话...'" :disabled="disabled"
               :ui="{
                 wrapper: 'relative',
                 base: 'w-full flex-1 min-h-[100px] max-h-[400px]',
                 rounded: 'rounded-lg',
                 padding: 'py-3 pl-4 pr-12',
-              }"
-              autofocus
-              resize
-              @keydown.enter.prevent.exact="submitMessage"
-            />
+              }" autofocus resize @keydown.enter.prevent.exact="submitMessage" />
 
             <div class="absolute right-3 bottom-3 flex space-x-2">
-              <UButton
-                v-if="isLoading"
-                color="gray"
-                variant="ghost"
-                icon="i-heroicons-stop"
-                :disabled="!isLoading"
-                @click="stop"
-                :tooltip="'停止生成'"
-                square
-              />
+              <UButton v-if="isLoading" color="gray" variant="ghost" icon="i-heroicons-stop" :disabled="!isLoading"
+                @click="stop" :tooltip="'停止生成'" square />
 
-              <UButton
-                type="submit"
-                color="primary"
-                variant="solid"
-                icon="i-heroicons-paper-airplane"
-                :disabled="disabled || !input.trim()"
-                :loading="isLoading"
-                :tooltip="'发送消息'"
-                square
-              />
+              <UButton type="submit" color="primary" variant="solid" icon="i-heroicons-paper-airplane"
+                :disabled="disabled || !input.trim()" :loading="isLoading" :tooltip="'发送消息'" square />
             </div>
           </form>
 
-          <div
-            class="mt-2 text-xs text-gray-500 dark:text-gray-400 flex justify-between items-center"
-          >
+          <div class="mt-2 text-xs text-gray-500 dark:text-gray-400 flex justify-between items-center">
             <div>
               按
               <kbd
-                class="px-1 py-0.5 bg-gray-100 dark:bg-gray-800 rounded border border-gray-300 dark:border-gray-700"
-                >Enter</kbd
-              >
+                class="px-1 py-0.5 bg-gray-100 dark:bg-gray-800 rounded border border-gray-300 dark:border-gray-700">Enter</kbd>
               发送
               <span class="mx-2">|</span>
               按
               <kbd
-                class="px-1 py-0.5 bg-gray-100 dark:bg-gray-800 rounded border border-gray-300 dark:border-gray-700"
-                >Shift</kbd
-              >
+                class="px-1 py-0.5 bg-gray-100 dark:bg-gray-800 rounded border border-gray-300 dark:border-gray-700">Shift</kbd>
               +
               <kbd
-                class="px-1 py-0.5 bg-gray-100 dark:bg-gray-800 rounded border border-gray-300 dark:border-gray-700"
-                >Enter</kbd
-              >
+                class="px-1 py-0.5 bg-gray-100 dark:bg-gray-800 rounded border border-gray-300 dark:border-gray-700">Enter</kbd>
               换行
             </div>
 
