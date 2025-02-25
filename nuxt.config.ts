@@ -11,7 +11,6 @@ export default defineNuxtConfig({
     openaiApiKey: '',
     assistantId: '',
   },
-
   compatibilityDate: '2024-07-05',
   telemetry: false,
 });

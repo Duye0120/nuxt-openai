@@ -114,6 +114,16 @@ export default defineEventHandler(async (event) => {
         }
         return getSessionInfo(body.conversationId);
 
+      case "getMessages":
+        // 获取会话消息历史
+        if (!body.conversationId) {
+          throw createError({
+            statusCode: 400,
+            message: "Missing conversationId for getMessages action",
+          });
+        }
+        return getSessionMessages(body.conversationId);
+
       case "delete":
         // 删除会话
         if (!body.conversationId) {
@@ -123,7 +133,33 @@ export default defineEventHandler(async (event) => {
           });
         }
         return deleteSession(body.conversationId);
+      case "listSessions":
+        // 获取所有会话列表
+        return listSessions();
 
+        // 在文件底部，deleteSession函数后添加以下函数：
+
+        // 列出所有会话
+        function listSessions() {
+          const sessionsList = [];
+
+          for (const [id, session] of sessionsCache.entries()) {
+            sessionsList.push({
+              id: id,
+              date: session.createdAt.toISOString(),
+              messageCount: session.messages.length,
+            });
+          }
+
+          // 按创建时间降序排序（最新的在前面）
+          sessionsList.sort(
+            (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+          );
+
+          return {
+            sessions: sessionsList,
+          };
+        }
       case "chat":
       default:
         // 处理聊天请求
@@ -279,6 +315,21 @@ function getSessionInfo(conversationId: string) {
     createdAt: session.createdAt.toISOString(),
     updatedAt: session.updatedAt.toISOString(),
     messageCount: session.messages.length,
+  };
+}
+
+// 获取会话消息历史
+function getSessionMessages(conversationId: string) {
+  const session = sessionsCache.get(conversationId);
+  if (!session) {
+    throw createError({
+      statusCode: 404,
+      message: `Session not found: ${conversationId}`,
+    });
+  }
+
+  return {
+    messages: session.messages,
   };
 }
 
