@@ -45,3 +45,19 @@ To learn more about OpenAI, Nuxt, and the AI SDK take a look at the following re
 - [Vercel AI Playground](https://play.vercel.ai) - compare and tune 20+ AI models side-by-side
 - [OpenAI Documentation](https://platform.openai.com/docs) - learn about OpenAI features and API.
 - [Nuxt Documentation](https://nuxt.com/docs) - learn about Nuxt features and API.
+
+
+
+### 代做
+- 展示token
+- 自定义prompt
+- 自定义模型
+- 自定义对话名称
+  - AI生成简短介绍
+- 去除MCP相关内容，直接作为默认路由
+- ui优化
+- 联网？（拉倒，等我后续看情况）
+- 暂时不做用户登陆，毕竟是本地自己用的
+- markdown支持
+- 支持图片输入
+
